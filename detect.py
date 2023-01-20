@@ -3,9 +3,12 @@ import cv2
 import numpy
 import tensorflow as tf
 import pandas as pd
+import math
 
 # Carregar modelos
-detector = hub.load("efficientdet_lite2_detection_1")
+#detector = hub.load("https://tfhub.dev/tensorflow/efficientdet/lite2/detection/1")
+# detector = hub.load("efficientdet_lite2_detection_1")
+detector = hub.load("/home/jfclere/TMP/tensorflow/inference_graph/saved_model/")
 labels = pd.read_csv('labels.csv',sep=';',index_col='ID')
 labels = labels['OBJECT (2017 REL.)']
 
@@ -30,32 +33,64 @@ while(True):
     #Add dims to rgb_tensor
     rgb_tensor = tf.expand_dims(rgb_tensor , 0)
     
-    boxes, scores, classes, num_detections = detector(rgb_tensor)
+    #boxes, scores, classes, num_detections = detector(rgb_tensor)
+    detected = detector(rgb_tensor)
+    print(detected)
+    num = int(detected['num_detections'][0])
+    print(num)
     
-    pred_labels = classes.numpy().astype('int')[0]
-    
-    pred_labels = [labels[i] for i in pred_labels]
-    pred_boxes = boxes.numpy()[0].astype('int')
-    pred_scores = scores.numpy()[0]
-    #loop throughout the faces detected and place a box around it
-    
-    for score, (ymin,xmin,ymax,xmax), label in zip(pred_scores, pred_boxes, pred_labels):
-        if score < 0.5:
-            continue
-            
-        score_txt = f'{100 * round(score,0)}'
-        img_boxes = cv2.rectangle(rgb,(xmin, ymax),(xmax, ymin),(0,255,0),1)      
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        cv2.putText(img_boxes,label,(xmin, ymax-10), font, 0.5, (255,0,0), 1, cv2.LINE_AA)
-        cv2.putText(img_boxes,score_txt,(xmax, ymax-10), font, 0.5, (255,0,0), 1, cv2.LINE_AA)
-
-
-
-    #Display the resulting frame
-    cv2.imshow('Result',img_boxes)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    real_num_detection = tf.cast(detected['num_detections'][0], tf.int32)
+    print(real_num_detection)
+    print("after real_num_detection")
+    print("after real_num_detection")
+    print("after real_num_detection")
+    #detection_classes = detected['detection_classes'][0]
+    detection_classes = tf.cast(detected['detection_classes'][0], tf.int32)
+    print(detection_classes)
+    #detection_classes = detected['detection_classes'][0].astype(np.uint8)
+    detection_boxes = detected['detection_boxes'][0]
+    detection_boxe0 = detection_boxes[0]
+    print("detection_boxes")
+    print(detection_boxes)
+    print("detection_boxes end")
+    boxe0 = detection_boxe0.numpy()
+    detection_scores =  detected['detection_scores'][0]
+    #print(detection_classes)
+    #print(detection_boxes)
+    print(detection_scores)
+    score0 = detection_scores[0]
+    print(score0)
+    print(score0.numpy())
+    x = tf.constant(0.3)
+    print(x)
+    result = tf.math.greater(score0, x)
+    print(result)
+    print(result.numpy())
+    if (score0.numpy() < 0.9):
+        print("Not found!")
+    else:
+        print("Found!")
+        print(boxe0)
+        print('rgb.shape')
+        print(rgb.shape)
+        h, w , _ = rgb.shape
+        # Something like [0.4156833  0.55372864 0.51923627 0.6624511 ]
+        left = boxe0[0] * w
+        right = boxe0[1] * w
+        top = boxe0[2] * h
+        bottom = boxe0[3] * h 
+        left = math.floor(left)
+        top = math.floor(top)
+        right = math.floor(right)
+        bottom = math.floor(bottom)
+        print(left)
+        print(top)
+        print(right)
+        print(bottom)
+        cv2.rectangle(rgb, (left,top),(right,bottom),(255,0,0),5)
+        cv2.imwrite("/home/jfclere/TMP/now.jpg", rgb)
         break
 
+    
 # When everything done, release the capture
 cap.release()
-cv2.destroyAllWindows()
