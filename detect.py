@@ -4,23 +4,40 @@ import numpy
 import tensorflow as tf
 import pandas as pd
 import math
+from picamera2 import Picamera2
 
-# Carregar modelos
-#detector = hub.load("https://tfhub.dev/tensorflow/efficientdet/lite2/detection/1")
-# detector = hub.load("efficientdet_lite2_detection_1")
-#detector = hub.load("/home/jfclere/TMP/tensorflow/inference_graph/saved_model/")
-detector = hub.load("saved_model/")
-labels = pd.read_csv('labels.csv',sep=';',index_col='ID')
-labels = labels['OBJECT (2017 REL.)']
+class Detector:
 
-cap = cv2.VideoCapture(0)
+  def __init__(self): 
 
-width = 512
-height = 512
+        # Carregar modelos
+        #detector = hub.load("https://tfhub.dev/tensorflow/efficientdet/lite2/detection/1")
+        # detector = hub.load("efficientdet_lite2_detection_1")
+        #detector = hub.load("/home/jfclere/TMP/tensorflow/inference_graph/saved_model/")
+        self.detector = hub.load("saved_model/")
 
-while(True):
+        self.usepicam2 = bool(False)
+        if not self.usepicam2:
+           print("Not self.usepicam2")
+        self.cap = cv2.VideoCapture(0)
+        ret, frame = self.cap.read()
+        if not ret:
+           print("Can't receive frame (stream end?).")
+           self.cap.release()
+           self.picam2 = Picamera2()
+           preview_config = self.picam2.create_still_configuration(main = {"size": (4656, 3496), "format": "BGR888"})
+           self.picam2.configure(preview_config)
+           self.picam2.start()
+           self.usepicam2 = bool(True)
+
+   
+  def detect(self, width, height): 
+
     #Capture frame-by-frame
-    ret, frame = cap.read()
+    if self.usepicam2:
+        frame = self.picam2.capture_array()
+    else:
+        ret, frame = self.cap.read()
     
     #Resize to respect the input_shape
     inp = cv2.resize(frame, (width , height ))
@@ -36,7 +53,7 @@ while(True):
     rgb_tensor = tf.expand_dims(rgb_tensor , 0)
     
     #boxes, scores, classes, num_detections = detector(rgb_tensor)
-    detected = detector(rgb_tensor)
+    detected = self.detector(rgb_tensor)
     print(detected)
     num = int(detected['num_detections'][0])
     print(num)
@@ -70,6 +87,7 @@ while(True):
     print(result.numpy())
     if (score0.numpy() < 0.9):
         print("Not found!")
+        return cv2.imencode('.jpg', rgb)[1].tobytes()
     else:
         print("Found!")
         print(boxe0)
@@ -128,12 +146,18 @@ while(True):
         cv2.rectangle(newimage, (left,bottom),(left+2,bottom+2),(0,0,255),5) # red
         cv2.rectangle(newimage, (right,top),(right+2,top+2),(255,255,255),5) # white
         cv2.imwrite("/home/jfclere/TMP/now.jpg", newimage)
-        cv2.imshow("Input", newimage)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-           break
+        return cv2.imencode('.jpg', newimage)[1].tobytes()
 
-        # break
+  def cleanup(self): 
+    # When everything done, release the capture
+    if self.usepicam2:
+        self.picam2.close()
+    else:
+        self.cap.release()
 
-    
-# When everything done, release the capture
-cap.release()
+if __name__=='__main__':    
+  width = 512
+  height = 512
+  mydetector = Detector()
+  image = mydetector.detect(width, height)
+  mydetector.cleanup()
