@@ -8,7 +8,8 @@ import math
 # Carregar modelos
 #detector = hub.load("https://tfhub.dev/tensorflow/efficientdet/lite2/detection/1")
 # detector = hub.load("efficientdet_lite2_detection_1")
-detector = hub.load("/home/jfclere/TMP/tensorflow/inference_graph/saved_model/")
+#detector = hub.load("/home/jfclere/TMP/tensorflow/inference_graph/saved_model/")
+detector = hub.load("saved_model/")
 labels = pd.read_csv('labels.csv',sep=';',index_col='ID')
 labels = labels['OBJECT (2017 REL.)']
 
@@ -29,6 +30,7 @@ while(True):
 
     #Is optional but i recommend (float convertion and convert img to tensor image)
     rgb_tensor = tf.convert_to_tensor(rgb, dtype=tf.uint8)
+    rgb_tensor0 = tf.identity(rgb_tensor)
 
     #Add dims to rgb_tensor
     rgb_tensor = tf.expand_dims(rgb_tensor , 0)
@@ -89,7 +91,48 @@ while(True):
         print(bottom)
         cv2.rectangle(rgb, (left,top),(right,bottom),(255,0,0),5)
         cv2.imwrite("/home/jfclere/TMP/now.jpg", rgb)
-        break
+        newimage = tf.io.encode_jpeg(
+                rgb_tensor0,
+                format='',
+                quality=95,
+                progressive=False,
+                optimize_size=False,
+                chroma_downsampling=True,
+                density_unit='in',
+                x_density=300,
+                y_density=300,
+                xmp_metadata='',
+                name=None)
+
+        tf.io.write_file("/tmp/now.jpg", newimage)
+        newimage = cv2.imread('/tmp/now.jpg')
+        h, w , _ = newimage.shape
+        # Something like [0.4156833  0.55372864 0.51923627 0.6624511 ]
+        right = boxe0[0] * w
+        left = boxe0[1] * w
+        bottom = boxe0[2] * h
+        top = boxe0[3] * h
+        left = math.floor(left)
+        top = math.floor(top)
+        right = math.floor(right)
+        bottom = math.floor(bottom)
+        print(left)
+        print(top)
+        print(right)
+        print(bottom)
+        #cv2.rectangle(newimage, (left,top),(right,bottom),(255,0,0),5)
+        # draw a small box on each point
+        cv2.rectangle(newimage, (left,top),(left+2,top+2),(255,0,0),5) # blue
+        cv2.rectangle(newimage, (right,bottom),(right+2,bottom+2),(0,255,0),5) # green
+        # From some reasons the red square seems to be center of the object weird?
+        cv2.rectangle(newimage, (left,bottom),(left+2,bottom+2),(0,0,255),5) # red
+        cv2.rectangle(newimage, (right,top),(right+2,top+2),(255,255,255),5) # white
+        cv2.imwrite("/home/jfclere/TMP/now.jpg", newimage)
+        cv2.imshow("Input", newimage)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+           break
+
+        # break
 
     
 # When everything done, release the capture
