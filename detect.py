@@ -30,17 +30,19 @@ class Detector:
            self.picam2.start()
            self.usepicam2 = bool(True)
 
-   
-  def detect(self, width, height): 
-
+  def capture(self):
     #Capture frame-by-frame
     if self.usepicam2:
         frame = self.picam2.capture_array()
     else:
         ret, frame = self.cap.read()
+    return frame
     
+   
+  def detect(self, width, height, inp): 
+
     #Resize to respect the input_shape
-    inp = cv2.resize(frame, (width , height ))
+    #inp = cv2.resize(frame, (width , height ))
 
     #Convert img to RGB
     rgb = cv2.cvtColor(inp, cv2.COLOR_BGR2RGB)
@@ -54,42 +56,40 @@ class Detector:
     
     #boxes, scores, classes, num_detections = detector(rgb_tensor)
     detected = self.detector(rgb_tensor)
-    print(detected)
+    # DEBUG print(detected)
     num = int(detected['num_detections'][0])
-    print(num)
+    # DEBUG print(num)
     
     real_num_detection = tf.cast(detected['num_detections'][0], tf.int32)
-    print(real_num_detection)
-    print("after real_num_detection")
-    print("after real_num_detection")
-    print("after real_num_detection")
+    # DEBUG print(real_num_detection)
+    # DEBUG print("after real_num_detection")
+    # DEBUG print("after real_num_detection")
+    # DEBUG print("after real_num_detection")
     #detection_classes = detected['detection_classes'][0]
     detection_classes = tf.cast(detected['detection_classes'][0], tf.int32)
-    print(detection_classes)
+    # DEBUG print(detection_classes)
     #detection_classes = detected['detection_classes'][0].astype(np.uint8)
     detection_boxes = detected['detection_boxes'][0]
     detection_boxe0 = detection_boxes[0]
-    print("detection_boxes")
-    print(detection_boxes)
-    print("detection_boxes end")
+    # DEBUG print("detection_boxes")
+    # DEBUG print(detection_boxes)
+    # DEBUG print("detection_boxes end")
     boxe0 = detection_boxe0.numpy()
     detection_scores =  detected['detection_scores'][0]
     #print(detection_classes)
     #print(detection_boxes)
-    print(detection_scores)
+    # DEBUG print(detection_scores)
     score0 = detection_scores[0]
-    print(score0)
-    print(score0.numpy())
-    x = tf.constant(0.3)
-    print(x)
-    result = tf.math.greater(score0, x)
-    print(result)
-    print(result.numpy())
-    if (score0.numpy() < 0.9):
+    # DEBUG print(score0)
+    # DEBUG print(score0.numpy())
+    # result = tf.math.greater(score0, x)
+    # DEBUG print(result)
+    # DEBUG print(result.numpy())
+    if (score0.numpy() < 0.6):
         print("Not found!")
-        return cv2.imencode('.jpg', rgb)[1].tobytes()
+        return False, 0, 0 , 0, 0 # , cv2.imencode('.jpg', rgb)[1].tobytes()
     else:
-        print("Found!")
+        print("Found! ", score0.numpy())
         print(boxe0)
         print('rgb.shape')
         print(rgb.shape)
@@ -146,7 +146,7 @@ class Detector:
         cv2.rectangle(newimage, (left,bottom),(left+2,bottom+2),(0,0,255),5) # red
         cv2.rectangle(newimage, (right,top),(right+2,top+2),(255,255,255),5) # white
         cv2.imwrite("/home/jfclere/TMP/now.jpg", newimage)
-        return cv2.imencode('.jpg', newimage)[1].tobytes()
+        return True, left, right , top, bottom # , cv2.imencode('.jpg', newimage)[1].tobytes()
 
   def cleanup(self): 
     # When everything done, release the capture
@@ -159,5 +159,24 @@ if __name__=='__main__':
   width = 512
   height = 512
   mydetector = Detector()
-  image = mydetector.detect(width, height)
+  input = mydetector.capture()
+  print(input.shape)
+  w, h , _ = input.shape
+  # cut the big image in pieces and check each piece
+  for r in range(0,w,width):
+    for c in range(0,h,height):
+        print(c, r, h , w)
+        cur_img = input[r:r+width, c:c+height,:]
+        found, left, right , top, bottom = mydetector.detect(width, height, cur_img)
+        if found:
+            left = c + left
+            bottom = r + bottom
+            cv2.rectangle(input, (left,bottom),(left+4,bottom+4),(0,0,255),5) # red
+            cv2.rectangle(input, (c,r),(c+height, r+width),(255,255,255),5) # while
+        else:
+            cv2.rectangle(input, (c,r),(c+height, r+width),(255,0,0),5) # blue
+        # DEBUG cv2.imwrite(f"/tmp/img{r}_{c}.png",cur_img)
+
+  cv2.imwrite("/tmp/now.jpg", input)
+  
   mydetector.cleanup()
