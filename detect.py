@@ -97,10 +97,15 @@ class Detector:
         # print(rgb.shape)
         h, w , _ = frame.shape
         # Something like [0.4156833  0.55372864 0.51923627 0.6624511 ]
-        left = boxe0[0] * w
-        right = boxe0[1] * w
-        top = boxe0[2] * h
-        bottom = boxe0[3] * h 
+        #left = boxe0[0] * w
+        #right = boxe0[1] * w
+        #top = boxe0[2] * h
+        #bottom = boxe0[3] * h 
+        top = boxe0[0] * h
+        left = boxe0[1] * w
+        bottom = boxe0[2] * w
+        right = boxe0[3] * h 
+        
         left = math.floor(left)
         top = math.floor(top)
         right = math.floor(right)
@@ -173,14 +178,14 @@ class Detector:
               print("Too small to find!")
               found = False
             else:
-              found, left, right , top, bottom = mydetector.detect(width, height, cur_img)
+              found, left, right , top, bottom = self.detect(512, 512, cur_img)
             if found:
                 left = c + left
                 right = c + right
                 bottom = r + bottom
                 top = r + top
                 cv2.rectangle(output, (left,bottom),(left+4,bottom+4),(0,0,255),5) # red
-                cv2.rectangle(output, (c,r),(c+height, r+width),(255,255,255),-1) # while
+                cv2.rectangle(output, (c,r),(c+height, r+width),(255,255,255),5) # white
                 cv2.imwrite("/tmp/now.jpg", output)
                 return found, left, right , top, bottom
             else:
@@ -195,7 +200,9 @@ if __name__=='__main__':
   mydetector = Detector()
   input = mydetector.capture()
   found, left, right , top, bottom = mydetector.finedetect(input)
+  cv2.rectangle(input, (left,top),(left+10,top+10),(255,9,0),5) # red
   cv2.rectangle(input, (left,bottom),(left+10,bottom+10),(0,255,0),5) # green
-  cv2.rectangle(input, (right,top),(right+10,top+10),(0,255,0),5) # green
+  cv2.rectangle(input, (right,top),(right+10,top+10),(0,0,255),5) # green
+  cv2.rectangle(input, (right,bottom),(right+10,bottom+10),(255,0,255),5) # weird color purple
   cv2.imwrite("/tmp/now1.jpg", input)
   mydetector.cleanup()

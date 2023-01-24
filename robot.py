@@ -10,39 +10,18 @@ def findkibble(mydetector):
   input = mydetector.capture()
   print(input.shape)
   w, h , _ = input.shape
-  # cut the big image in pieces and check each piece
-  for r in range(0,w,width):
-    for c in range(0,h,height):
-        #print(c, r, h , w)
-        cur_img = input[r:r+width, c:c+height,:]
-        # skip small sub images
-        curw, curh, _ = cur_img.shape
-        if ((curw<50) or (curw<50)):
-          print("Too small to find!")
-          found = False
-        else:
-          found, left, right , top, bottom = mydetector.detect(width, height, cur_img)
-        if found:
-            print("Found!!!")
-            bottom = r + bottom # for the moment we don't use it...
-            left = c + left
-            cv2.rectangle(input, (left,bottom),(left+4,bottom+4),(0,0,255),5) # red
-            cv2.rectangle(input, (c,r),(c+height, r+width),(255,255,255),5) # while
-            cv2.imwrite("/tmp/now.jpg", input)
-            if left < w/2:
-              print("kibble detected on the Left")
-              return True, True
-            else:
-              print("kibble detected on the Right")
-              return True, False
-        else:
-            #print("Not Found")
-            cv2.rectangle(input, (c,r),(c+height, r+width),(255,0,0),5) # blue
-
-  cv2.imwrite("/tmp/now.jpg", input)
-  return False, False
-
-  # if we are here we have something wrong...
+  # First try the whole picture
+  found, left, right , top, bottom = mydetector.detect(width, height, input)
+  if not found:
+    found, left, right , top, bottom = mydetector.finedetect(input)
+  if found:
+    print(left, right , top, bottom, w , h)
+    if left < w/2:
+      print("kibble detected on the Left")
+      return True, True
+    else:
+      print("kibble detected on the Right")
+      return True, False
   return False, False
 
 def move(direction):
