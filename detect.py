@@ -34,18 +34,20 @@ class Detector:
     #Capture frame-by-frame
     if self.usepicam2:
         frame = self.picam2.capture_array()
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGRA2RGB)
     else:
         ret, frame = self.cap.read()
-    return frame
+        rgb = cv2.cvtColor(inp, cv2.COLOR_BGR2RGB)
+    return rgb
     
    
-  def detect(self, width, height, inp): 
+  def detect(self, width, height, frame): 
 
     #Resize to respect the input_shape
-    #inp = cv2.resize(frame, (width , height ))
+    rgb = cv2.resize(frame, (width , height ))
 
     #Convert img to RGB
-    rgb = cv2.cvtColor(inp, cv2.COLOR_BGR2RGB)
+    # rgb = cv2.cvtColor(inp, cv2.COLOR_BGR2RGB)
 
     #Is optional but i recommend (float convertion and convert img to tensor image)
     rgb_tensor = tf.convert_to_tensor(rgb, dtype=tf.uint8)
@@ -86,14 +88,14 @@ class Detector:
     # DEBUG print(result)
     # DEBUG print(result.numpy())
     if (score0.numpy() < 0.6):
-        print("Not found!")
+        # DEBUG print("Not found!")
         return False, 0, 0 , 0, 0 # , cv2.imencode('.jpg', rgb)[1].tobytes()
     else:
         print("Found! ", score0.numpy())
-        print(boxe0)
-        print('rgb.shape')
-        print(rgb.shape)
-        h, w , _ = rgb.shape
+        # print(boxe0)
+        # print('rgb.shape')
+        # print(rgb.shape)
+        h, w , _ = frame.shape
         # Something like [0.4156833  0.55372864 0.51923627 0.6624511 ]
         left = boxe0[0] * w
         right = boxe0[1] * w
@@ -107,45 +109,45 @@ class Detector:
         print(top)
         print(right)
         print(bottom)
-        cv2.rectangle(rgb, (left,top),(right,bottom),(255,0,0),5)
-        cv2.imwrite("/home/jfclere/TMP/now.jpg", rgb)
-        newimage = tf.io.encode_jpeg(
-                rgb_tensor0,
-                format='',
-                quality=95,
-                progressive=False,
-                optimize_size=False,
-                chroma_downsampling=True,
-                density_unit='in',
-                x_density=300,
-                y_density=300,
-                xmp_metadata='',
-                name=None)
+        # TRY O cv2.rectangle(rgb, (left,top),(right,bottom),(255,0,0),5)
+        # TRY O cv2.imwrite("/home/jfclere/TMP/now.jpg", rgb)
+        # TRY O newimage = tf.io.encode_jpeg(
+        # TRY O         rgb_tensor0,
+        # TRY O         format='',
+        # TRY O         quality=95,
+        # TRY O         progressive=False,
+        # TRY O         optimize_size=False,
+        # TRY O         chroma_downsampling=True,
+        # TRY O         density_unit='in',
+        # TRY O         x_density=300,
+        # TRY O         y_density=300,
+        # TRY O         xmp_metadata='',
+        # TRY O         name=None)
 
-        tf.io.write_file("/tmp/now.jpg", newimage)
-        newimage = cv2.imread('/tmp/now.jpg')
-        h, w , _ = newimage.shape
-        # Something like [0.4156833  0.55372864 0.51923627 0.6624511 ]
-        right = boxe0[0] * w
-        left = boxe0[1] * w
-        bottom = boxe0[2] * h
-        top = boxe0[3] * h
-        left = math.floor(left)
-        top = math.floor(top)
-        right = math.floor(right)
-        bottom = math.floor(bottom)
-        print(left)
-        print(top)
-        print(right)
-        print(bottom)
-        #cv2.rectangle(newimage, (left,top),(right,bottom),(255,0,0),5)
-        # draw a small box on each point
-        cv2.rectangle(newimage, (left,top),(left+2,top+2),(255,0,0),5) # blue
-        cv2.rectangle(newimage, (right,bottom),(right+2,bottom+2),(0,255,0),5) # green
+        # TRY O tf.io.write_file("/tmp/now.jpg", newimage)
+        # TRY O newimage = cv2.imread('/tmp/now.jpg')
+        # TRY O h, w , _ = newimage.shape
+        # TRY O # Something like [0.4156833  0.55372864 0.51923627 0.6624511 ]
+        # TRY O right = boxe0[0] * w
+        # TRY O left = boxe0[1] * w
+        # TRY O bottom = boxe0[2] * h
+        # TRY O top = boxe0[3] * h
+        # TRY O left = math.floor(left)
+        # TRY O top = math.floor(top)
+        # TRY O right = math.floor(right)
+        # TRY O bottom = math.floor(bottom)
+        # TRY O print(left)
+        # TRY O print(top)
+        # TRY O print(right)
+        # TRY O print(bottom)
+        # TRY O #cv2.rectangle(newimage, (left,top),(right,bottom),(255,0,0),5)
+        # TRY O # draw a small box on each point
+        # TRY O cv2.rectangle(newimage, (left,top),(left+2,top+2),(255,0,0),5) # blue
+        # TRY O cv2.rectangle(newimage, (right,bottom),(right+2,bottom+2),(0,255,0),5) # green
         # From some reasons the red square seems to be center of the object weird?
-        cv2.rectangle(newimage, (left,bottom),(left+2,bottom+2),(0,0,255),5) # red
-        cv2.rectangle(newimage, (right,top),(right+2,top+2),(255,255,255),5) # white
-        cv2.imwrite("/home/jfclere/TMP/now.jpg", newimage)
+        # TRY O cv2.rectangle(newimage, (left,bottom),(left+2,bottom+2),(0,0,255),5) # red
+        # TRY O cv2.rectangle(newimage, (right,top),(right+2,top+2),(255,255,255),5) # white
+        # TRY O cv2.imwrite("/home/jfclere/TMP/now.jpg", newimage)
         return True, left, right , top, bottom # , cv2.imencode('.jpg', newimage)[1].tobytes()
 
   def cleanup(self): 
@@ -155,28 +157,34 @@ class Detector:
     else:
         self.cap.release()
 
+  # here we cut the image in squares and make the squares smaller and smaller (to 512x512)
+  def finedetect(self, input): 
+    output = input.copy()
+    for cur_shape in ([1536, 1536],[1024, 1024],[512,512]):
+      print(cur_shape[0], cur_shape[1])
+      width = cur_shape[0]
+      height = cur_shape[1]
+      w, h , _ = input.shape
+      # cut the big image in pieces and check each piece
+      for r in range(0,w,width):
+        for c in range(0,h,height):
+            print(c, r, h , w)
+            cur_img = input[r:r+width, c:c+height,:]
+            found, left, right , top, bottom = mydetector.detect(width, height, cur_img)
+            if found:
+                left = c + left
+                bottom = r + bottom
+                cv2.rectangle(output, (left,bottom),(left+4,bottom+4),(0,0,255),5) # red
+                cv2.rectangle(output, (c,r),(c+height, r+width),(255,255,255),5) # while
+            else:
+                cv2.rectangle(output, (c,r),(c+height, r+width),(255,0,0),5) # blue
+            # DEBUG cv2.imwrite(f"/tmp/img{r}_{c}.png",cur_img)
+
+      cv2.imwrite("/tmp/now.jpg", output)
+  
+
 if __name__=='__main__':    
-  width = 512
-  height = 512
   mydetector = Detector()
   input = mydetector.capture()
-  print(input.shape)
-  w, h , _ = input.shape
-  # cut the big image in pieces and check each piece
-  for r in range(0,w,width):
-    for c in range(0,h,height):
-        print(c, r, h , w)
-        cur_img = input[r:r+width, c:c+height,:]
-        found, left, right , top, bottom = mydetector.detect(width, height, cur_img)
-        if found:
-            left = c + left
-            bottom = r + bottom
-            cv2.rectangle(input, (left,bottom),(left+4,bottom+4),(0,0,255),5) # red
-            cv2.rectangle(input, (c,r),(c+height, r+width),(255,255,255),5) # while
-        else:
-            cv2.rectangle(input, (c,r),(c+height, r+width),(255,0,0),5) # blue
-        # DEBUG cv2.imwrite(f"/tmp/img{r}_{c}.png",cur_img)
-
-  cv2.imwrite("/tmp/now.jpg", input)
-  
+  mydetector.finedetect(input)
   mydetector.cleanup()
