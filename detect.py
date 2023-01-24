@@ -105,10 +105,7 @@ class Detector:
         top = math.floor(top)
         right = math.floor(right)
         bottom = math.floor(bottom)
-        print(left)
-        print(top)
-        print(right)
-        print(bottom)
+        print(left, top, right, bottom)
         # TRY O cv2.rectangle(rgb, (left,top),(right,bottom),(255,0,0),5)
         # TRY O cv2.imwrite("/home/jfclere/TMP/now.jpg", rgb)
         # TRY O newimage = tf.io.encode_jpeg(
@@ -170,21 +167,35 @@ class Detector:
         for c in range(0,h,height):
             print(c, r, h , w)
             cur_img = input[r:r+width, c:c+height,:]
-            found, left, right , top, bottom = mydetector.detect(width, height, cur_img)
+            # skip small sub images
+            curw, curh, _ = cur_img.shape
+            if ((curw<50) or (curw<50)):
+              print("Too small to find!")
+              found = False
+            else:
+              found, left, right , top, bottom = mydetector.detect(width, height, cur_img)
             if found:
                 left = c + left
+                right = c + right
                 bottom = r + bottom
+                top = r + top
                 cv2.rectangle(output, (left,bottom),(left+4,bottom+4),(0,0,255),5) # red
-                cv2.rectangle(output, (c,r),(c+height, r+width),(255,255,255),5) # while
+                cv2.rectangle(output, (c,r),(c+height, r+width),(255,255,255),-1) # while
+                cv2.imwrite("/tmp/now.jpg", output)
+                return found, left, right , top, bottom
             else:
                 cv2.rectangle(output, (c,r),(c+height, r+width),(255,0,0),5) # blue
             # DEBUG cv2.imwrite(f"/tmp/img{r}_{c}.png",cur_img)
 
-      cv2.imwrite("/tmp/now.jpg", output)
+    cv2.imwrite("/tmp/now.jpg", output)
+    return False, 0, 0 , 0, 0
   
 
 if __name__=='__main__':    
   mydetector = Detector()
   input = mydetector.capture()
-  mydetector.finedetect(input)
+  found, left, right , top, bottom = mydetector.finedetect(input)
+  cv2.rectangle(input, (left,bottom),(left+10,bottom+10),(0,255,0),5) # green
+  cv2.rectangle(input, (right,top),(right+10,top+10),(0,255,0),5) # green
+  cv2.imwrite("/tmp/now1.jpg", input)
   mydetector.cleanup()
