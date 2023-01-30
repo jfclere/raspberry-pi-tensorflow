@@ -64,7 +64,7 @@ def isSameMedian(med, m, gap):
       return False
     return True
 
-def isFrontOK(image):
+def oldisFrontOK(image):
 
     # Get a piece of the floor 3496, 4656
     #h=96
@@ -148,6 +148,43 @@ def isFrontOK(image):
     cv2.imwrite("/tmp/now1.jpg", output)
     return False
 
+def isFrontOK(image):
+    w=128
+    m = valFrontsize(image, w)
+    w=w+w
+    mm = valFrontsize(image, w)
+    w=w+w
+    mmm = valFrontsize(image, w)
+    g1 = abs(m[0]-mm[0])
+    g2 = abs(m[1]-mm[1])
+    g3 = abs(m[2]-mm[2])
+    gap = (g1+g2+g3)/3
+    print("gap: ", gap)
+    if isSameMedian(mmm, mm, gap+2):
+       if isSameMedian(mm, m, gap+2): 
+          return True
+    return False
+
+def valFrontsize(image, w):
+
+    # Get a piece of the floor 3496, 4656
+    h=int(w*2)
+    y=3496 - h
+    x=2328 - w # the middle is 2328
+    w=int(w*2)
+
+    crop_img = image[y:y+h, x:x+w]
+    red = "crop"
+    cv2.imwrite("/tmp/now" + red + ".jpg", crop_img)
+    med = getMedianImageChannels(crop_img)
+    print(med)
+
+    red = "croped"
+    output = image.copy()
+    cv2.rectangle(output, (x,y),(x+h, y+w),(255,255,255),4)
+    cv2.imwrite("/tmp/now" + red + ".jpg", output)
+    return med
+
 picam2 = Picamera2()
 
 # - Selected unicam format: 4656x3496-pRAA
@@ -167,7 +204,7 @@ while(True):
       print("Space in front!")
       robot.moveforward()
     else:
-      break
+      robot.turnright()
 
 # When everything done, release the capture
 # cap.release()
