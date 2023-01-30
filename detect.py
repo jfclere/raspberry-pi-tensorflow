@@ -67,8 +67,9 @@ class Detector:
     # DEBUG print("after real_num_detection")
     # DEBUG print("after real_num_detection")
     # DEBUG print("after real_num_detection")
-    #detection_classes = detected['detection_classes'][0]
-    detection_classes = tf.cast(detected['detection_classes'][0], tf.int32)
+    detection_classes = detected['detection_classes'][0]
+    #detection_classes = tf.cast(detected['detection_classes'][0], tf.int32)
+    detection0 = detection_classes[0]
     # DEBUG print(detection_classes)
     #detection_classes = detected['detection_classes'][0].astype(np.uint8)
     detection_boxes = detected['detection_boxes'][0]
@@ -87,11 +88,11 @@ class Detector:
     # result = tf.math.greater(score0, x)
     # DEBUG print(result)
     # DEBUG print(result.numpy())
-    if (score0.numpy() < 0.6):
+    if (score0.numpy() < 0.9):
         # DEBUG print("Not found!")
         return False, 0, 0 , 0, 0 # , cv2.imencode('.jpg', rgb)[1].tobytes()
     else:
-        print("Found! ", score0.numpy())
+        print("Found! ", score0.numpy(), " ", detection0)
         # print(boxe0)
         # print('rgb.shape')
         # print(rgb.shape)
@@ -110,7 +111,7 @@ class Detector:
         top = math.floor(top)
         right = math.floor(right)
         bottom = math.floor(bottom)
-        print(left, top, right, bottom)
+        print("detect() left: " , left, "top: ", top, "right: ", right, "bottom: ", bottom)
         # TRY O cv2.rectangle(rgb, (left,top),(right,bottom),(255,0,0),5)
         # TRY O cv2.imwrite("/home/jfclere/TMP/now.jpg", rgb)
         # TRY O newimage = tf.io.encode_jpeg(
@@ -163,14 +164,14 @@ class Detector:
   def finedetect(self, input): 
     output = input.copy()
     for cur_shape in ([1536, 1536],[1024, 1024],[512,512]):
-      print(cur_shape[0], cur_shape[1])
+      # print(cur_shape[0], cur_shape[1])
       width = cur_shape[0]
       height = cur_shape[1]
       w, h , _ = input.shape
       # cut the big image in pieces and check each piece
       for r in range(0,w,width):
         for c in range(0,h,height):
-            print(c, r, h , w)
+            # print(c, r, h , w)
             cur_img = input[r:r+width, c:c+height,:]
             # skip small sub images
             curw, curh, _ = cur_img.shape
@@ -184,7 +185,10 @@ class Detector:
                 right = c + right
                 bottom = r + bottom
                 top = r + top
-                cv2.rectangle(output, (left,bottom),(left+4,bottom+4),(0,0,255),5) # red
+                cv2.rectangle(output, (left,top),(left+10,top+10),(255,9,0),5) # red
+                cv2.rectangle(output, (left,bottom),(left+10,bottom+10),(0,255,0),5) # green
+                cv2.rectangle(output, (right,top),(right+10,top+10),(0,0,255),5) # blue
+                cv2.rectangle(output, (right,bottom),(right+10,bottom+10),(255,0,255),5) # weird color purple
                 cv2.rectangle(output, (c,r),(c+height, r+width),(255,255,255),5) # white
                 cv2.imwrite("/tmp/now.jpg", output)
                 return found, left, right , top, bottom
@@ -202,7 +206,7 @@ if __name__=='__main__':
   found, left, right , top, bottom = mydetector.finedetect(input)
   cv2.rectangle(input, (left,top),(left+10,top+10),(255,9,0),5) # red
   cv2.rectangle(input, (left,bottom),(left+10,bottom+10),(0,255,0),5) # green
-  cv2.rectangle(input, (right,top),(right+10,top+10),(0,0,255),5) # green
+  cv2.rectangle(input, (right,top),(right+10,top+10),(0,0,255),5) # blue
   cv2.rectangle(input, (right,bottom),(right+10,bottom+10),(255,0,255),5) # weird color purple
   cv2.imwrite("/tmp/now1.jpg", input)
   mydetector.cleanup()
