@@ -3,6 +3,7 @@ import numpy as np
 from picamera2 import Picamera2
 
 import robot
+counttries=0
 
 def getMedianImageChannels(im):
     b, g, r = cv2.split(im) # Split channels
@@ -64,116 +65,49 @@ def isSameMedian(med, m, gap):
       return False
     return True
 
-def oldisFrontOK(image):
-
-    # Get a piece of the floor 3496, 4656
-    #h=96
-    #w=48
-    w=256
-    h=int(w*2)
-    y=3496 - h
-    x=2328 - w # the middle is 2328
-    w=int(w*2)
-
-    crop_img = image[y:y+h, x:x+w]
-    red = "crop"
-    cv2.imwrite("/tmp/now" + red + ".jpg", crop_img)
-    med = getMedianImageChannels(crop_img)
-    print(med)
-
-    red = "croped"
-    output = image.copy()
-    cv2.rectangle(output, (x,y),(x+h, y+w),(255,255,255),4)
-    cv2.imwrite("/tmp/now" + red + ".jpg", output)
-
-    # We have a medium value for the front which is the floor
-    w, h , _ = image.shape
-    # cut the big image in pieces and check each piece
-    width=16
-    height=16
-    gap=15
-    mmed = med
-    mp = med
-    output = image.copy()
-    # from right to left and top to bottom
-    # First reduce the number of colors
-    for shape in ([16,16, 30], [32,32, 20], [64, 64, 10]):
-    #for shape in ([16,16],):
-       width = shape[0]
-       height = shape[1]
-       gap = shape[2] 
-   
-       for r in range(0,w,width):
-         med = mmed
-         for c in range(0,h,height):
-             cur_img = image[r:r+width, c:c+height,:]
-             m = getMedianImageChannels(cur_img)
-             if isSameMedian(med, m, gap):
-                 if not isSameMedian(mmed, m, 5*gap):
-                    cv2.rectangle(output, (c,r),(c+height, r+width),(0,0,0),-1) # Fill with black
-             else:
-                 cv2.rectangle(output, (c,r),(c+height, r+width),(0,0,0),-1) # Fill with black
-                 med = m
-
-       for c in range(0,h,height):
-         med = mmed
-         for r in range(0,w,width):
-             cur_img = image[r:r+width, c:c+height,:]
-             m = getMedianImageChannels(cur_img)
-             if isSameMedian(med, m, gap):
-                 if not isSameMedian(mmed, m, 5*gap):
-                    cv2.rectangle(output, (c,r),(c+height, r+width),(0,0,0),-1) # Fill with black
-             else:
-                 cv2.rectangle(output, (c,r),(c+height, r+width),(0,0,0),-1) # Fill with black
-                 med = m
-       # check if we have a black line in front
-       infront = False
-       for r in range(w-width,int(w/2),-width):
-         count = 0
-         n = 0;
-         for c in range(0,h,height):
-             cur_img = output[r:r+width, c:c+height,:]
-             if not n:
-                 cv2.rectangle(output, (c,r),(c+height, r+width),(255,255,255),-1) # White
-             n = n + 1
-             m = getMedianImageChannels(cur_img)
-             if isSameMedian([0,0,0], m, 0):
-               count = count + 1
-         if count == int(w/(width*2)):
-            infront = True
-            break
-       if infront:
-          cv2.imwrite("/tmp/now1.jpg", output)
-          return True
-    cv2.imwrite("/tmp/now1.jpg", output)
-    return False
-
+# h the vertical gap and stepw the horizontal one
 def isFrontOK(image, h, stepw):
+    global counttries
+    counttries = counttries + 1
     output = image.copy()
     w=256
     m = valFrontsize(image, output, w, 0, 0)
     mm = valFrontsize(image, output, w, h, stepw)
-    h=h+h
-    mmm = valFrontsize(image, output, w, h, stepw+stepw)
+    mmm = valFrontsize(image, output, w, h+h, stepw+stepw)
     g1 = abs(m[0]-mm[0])
     g1 = abs(m[0]-mm[0])
     g2 = abs(m[1]-mm[1])
     g3 = abs(m[2]-mm[2])
-    gap = max(g1, g2)
-    gap = max(gap,g3)
+    mgap = max(g1, g2)
+    mgap = max(mgap,g3)
     # Already too different
-    if (gap > 40.0):
+    if (mgap > 40.0):
       print("gap! ", gap)
       return False
-    gap = gap*2
+    gap = mgap*2
     print("gap: ", gap)
-    if isSameMedian(mmm, mm, gap):
-       return True
-    return False
+    if not isSameMedian(mmm, mm, gap):
+       return False
+    if stepw:
+       # Here check from right or left (h ia zero!)
+       mmmm = valFrontsize(image, output, w, w, stepw*3)
+       if not isSameMedian(mmmm, mmm, mgap*4):
+          return False
+    # Make sure there is nothing in front
+    ml = valFrontsize(image, output, w, h+h+h, h+h)
+    if not isSameMedian(ml, mm, gap):
+       print("Front lelf not OK")
+       return False
+    mr = valFrontsize(image, output, w, h+h+h, -(h+h))
+    if not isSameMedian(mr, mm, gap):
+       print("Front right not OK")
+       return False
+    return True
 
 # get a square and return value
 def valFrontsize(image, output, w, starth, startw):
 
+    global counttries
     # Get a piece of the floor 3496, 4656
     h=int(w*2)
     y=(3496 - h) - starth
@@ -186,7 +120,7 @@ def valFrontsize(image, output, w, starth, startw):
     med = getMedianImageChannels(crop_img)
     print(med)
 
-    red = "croped"
+    red = "croped" + str(counttries)
     cv2.rectangle(output, (x,y),(x+h, y+w),(255,255,255),4)
     cv2.imwrite("/tmp/now" + red + ".jpg", output)
     return med
@@ -210,17 +144,19 @@ while(True):
     startw=0
     if isFrontOK(frame, h, startw):
       print("Space in front!")
-      break
-      # robot.moveforward()
+      robot.moveforward()
     else:
       print("Try left!!")
       if isFrontOK(frame, 0, 512):
          print("Space on left!")
+         robot.turnleft()
+         continue
       print("Try right!!")
       if isFrontOK(frame, 0, -512):
          print("Space on right!")
+         robot.turnright()
+         continue
       break
-      #robot.turnright()
 
 # When everything done, release the capture
 # cap.release()
