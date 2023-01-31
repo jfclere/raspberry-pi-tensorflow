@@ -148,29 +148,36 @@ def oldisFrontOK(image):
     cv2.imwrite("/tmp/now1.jpg", output)
     return False
 
-def isFrontOK(image):
-    w=128
-    m = valFrontsize(image, w)
-    w=w+w
-    mm = valFrontsize(image, w)
-    w=w+w
-    mmm = valFrontsize(image, w)
+def isFrontOK(image, h, stepw):
+    output = image.copy()
+    w=256
+    m = valFrontsize(image, output, w, 0, 0)
+    mm = valFrontsize(image, output, w, h, stepw)
+    h=h+h
+    mmm = valFrontsize(image, output, w, h, stepw+stepw)
+    g1 = abs(m[0]-mm[0])
     g1 = abs(m[0]-mm[0])
     g2 = abs(m[1]-mm[1])
     g3 = abs(m[2]-mm[2])
-    gap = (g1+g2+g3)/3
+    gap = max(g1, g2)
+    gap = max(gap,g3)
+    # Already too different
+    if (gap > 40.0):
+      print("gap! ", gap)
+      return False
+    gap = gap*2
     print("gap: ", gap)
-    if isSameMedian(mmm, mm, gap+2):
-       if isSameMedian(mm, m, gap+2): 
-          return True
+    if isSameMedian(mmm, mm, gap):
+       return True
     return False
 
-def valFrontsize(image, w):
+# get a square and return value
+def valFrontsize(image, output, w, starth, startw):
 
     # Get a piece of the floor 3496, 4656
     h=int(w*2)
-    y=3496 - h
-    x=2328 - w # the middle is 2328
+    y=(3496 - h) - starth
+    x=(2328 - w) - startw # the middle is 2328
     w=int(w*2)
 
     crop_img = image[y:y+h, x:x+w]
@@ -180,7 +187,6 @@ def valFrontsize(image, w):
     print(med)
 
     red = "croped"
-    output = image.copy()
     cv2.rectangle(output, (x,y),(x+h, y+w),(255,255,255),4)
     cv2.imwrite("/tmp/now" + red + ".jpg", output)
     return med
@@ -200,11 +206,21 @@ while(True):
     # convert to cv2 internal format.
     frame = cv2.cvtColor(np_array, cv2.COLOR_BGRA2RGB) 
     cv2.imwrite("/tmp/now.jpg", frame)
-    if isFrontOK(frame):
+    h=256 # move half square up.
+    startw=0
+    if isFrontOK(frame, h, startw):
       print("Space in front!")
-      robot.moveforward()
+      break
+      # robot.moveforward()
     else:
-      robot.turnright()
+      print("Try left!!")
+      if isFrontOK(frame, 0, 512):
+         print("Space on left!")
+      print("Try right!!")
+      if isFrontOK(frame, 0, -512):
+         print("Space on right!")
+      break
+      #robot.turnright()
 
 # When everything done, release the capture
 # cap.release()
