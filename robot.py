@@ -66,21 +66,32 @@ def move(direction):
   # Body is a byte string.
   # We have to know the encoding in order to print it to a text file
   # such as standard output.
-  print(body.decode('iso-8859-1'))
+  result = body.decode('iso-8859-1')
+  print(result)
+  if "Failed:" in result: 
+    return False
   # We need to wait until the move is done.
-  time.sleep(1) # Sleep for 1 second
+  # time.sleep(1) # Sleep for 1 second
+  return True
+
+def movestatus(direction):
+  if move(direction):
+    time.sleep(0.2)
+    if move('Status'):
+      return True
+  return False
 
 def turnleft():
-  move('Left')
+  return movestatus('Left')
 
 def turnright():
-  move('Right')
+  return movestatus('Right')
 
 def moveforward():
-  move('Forward')
+  return movestatus('Forward')
 
 def movebackward():
-  move('Backward')
+  return movestatus('Backward')
 
 
 # move try and turn left or right
