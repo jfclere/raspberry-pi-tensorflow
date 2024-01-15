@@ -4,11 +4,15 @@ import numpy
 import tensorflow as tf
 import pandas as pd
 import math
-from picamera2 import Picamera2
+import os
+try:
+  from picamera2 import Picamera2
+except ImportError:
+  from jfcdummy import Picamera2
 
 class Detector:
 
-  def __init__(self): 
+  def __init__(self, hostname): 
 
         # Carregar modelos
         #detector = hub.load("https://tfhub.dev/tensorflow/efficientdet/lite2/detection/1")
@@ -17,10 +21,24 @@ class Detector:
         self.detector = hub.load("saved_model/")
 
         self.usepicam2 = bool(False)
-        if not self.usepicam2:
-           print("Not self.usepicam2")
-        self.cap = cv2.VideoCapture(0)
-        ret, frame = self.cap.read()
+        self.useremotepicam2 = bool(False)
+        self.hostname = hostname
+
+        if hostname == 'localhost':
+           self.cap = cv2.VideoCapture(0)
+           ret, frame = self.cap.read()
+        else:
+           # we have a remote robot
+           r = os.system("ssh -l pi " + hostname + " /usr/bin/libcamera-still -o /tmp/now.jpg")
+           if r == 0:
+              r = os.system("scp pi@" + hostname + ":/tmp/now.jpg /tmp/now.jpg")
+           if r == 0:
+              self.useremotepicam2 = bool(True)
+              ret = bool(True)
+           else:
+              print("Failed getting remote image!!!")
+              ret = bool(False)
+           
         if not ret:
            print("Can't receive frame (stream end?).")
            self.cap.release()
@@ -35,9 +53,14 @@ class Detector:
     if self.usepicam2:
         frame = self.picam2.capture_array()
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGRA2RGB)
+    elif self.useremotepicam2:
+        os.system("ssh -l pi " + self.hostname + " /usr/bin/libcamera-still -o /tmp/now.jpg")
+        os.system("scp pi@" + self.hostname + ":/tmp/now.jpg /tmp/now.jpg")
+        frame = cv2.imread('/tmp/now.jpg')
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     else:
-        ret, frame = self.cap.read()
-        rgb = cv2.cvtColor(inp, cv2.COLOR_BGR2RGB)
+        frame = self.cap.read()
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     return rgb
     
    
@@ -157,6 +180,8 @@ class Detector:
     # When everything done, release the capture
     if self.usepicam2:
         self.picam2.close()
+    elif self.useremotepicam2:
+        print("No dirty!")
     else:
         self.cap.release()
 

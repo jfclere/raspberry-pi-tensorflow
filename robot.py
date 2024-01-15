@@ -1,5 +1,5 @@
 #!/usr/bin/python
-import pycurl
+import requests
 import cv2
 from io import BytesIO
 from detect import Detector
@@ -53,20 +53,9 @@ def findkibble(mydetector):
     return True, False, False, nearenough
   return False, False, False, False
 
-def move(direction):
-  buffer = BytesIO()
-  c = pycurl.Curl()
-  c.setopt(c.URL, 'http://192.168.1.119/cgi-bin/'+direction+'.py')
-  c.setopt(c.WRITEDATA, buffer)
-  #c.setopt(c.CAINFO, certifi.where())
-  c.perform()
-  c.close()
-
-  body = buffer.getvalue()
-  # Body is a byte string.
-  # We have to know the encoding in order to print it to a text file
-  # such as standard output.
-  result = body.decode('iso-8859-1')
+def move(direction, hostname):
+  r = requests.get('http://' + hostname + '/cgi-bin/'+direction+'.py')
+  result = r.text
   print(result)
   if "Failed:" in result: 
     return False
@@ -74,28 +63,28 @@ def move(direction):
   # time.sleep(1) # Sleep for 1 second
   return True
 
-def movestatus(direction):
-  if move(direction):
+def movestatus(direction, hostname):
+  if move(direction, hostname):
     time.sleep(0.2)
-    if move('Status'):
+    if move('Status', hostname):
       return True
   return False
 
-def turnleft():
-  return movestatus('Left')
+def turnleft(hostname):
+  return movestatus('Left', hostname)
 
-def turnright():
-  return movestatus('Right')
+def turnright(hostname):
+  return movestatus('Right', hostname)
 
-def moveforward():
-  return movestatus('Forward')
+def moveforward(hostname):
+  return movestatus('Forward', hostname)
 
-def movebackward():
-  return movestatus('Backward')
+def movebackward(hostname):
+  return movestatus('Backward', hostname)
 
 
 # move try and turn left or right
-def tryturn(n, goleft, detector):
+def tryturn(n, goleft, detector, hostname):
   i = 0
   while i < n:
     found, left, right , near = findkibble(detector)
@@ -103,38 +92,38 @@ def tryturn(n, goleft, detector):
       return found, left, right, near
     # Not found try to turn left/right
     if goleft:
-      turnleft()
+      turnleft(hostname)
     else:
-      turnright()
+      turnright(hostname)
     i = i + 1
   return False, False, False, False
 
-def stepforward(mydetector):
+def stepforward(mydetector, hostname):
   # Try on left
-  found, left, right, near = tryturn(5, True, mydetector)
+  found, left, right, near = tryturn(5, True, mydetector, hostname)
   if not found:
-    turnright()
+    turnright(hostname)
     time.sleep(1) # Sleep for 1 second
-    turnright()
+    turnright(hostname)
     time.sleep(1) # Sleep for 1 second
-    turnright()
+    turnright(hostname)
     time.sleep(1) # Sleep for 1 second
-    turnright()
+    turnright(hostname)
     time.sleep(1) # Sleep for 1 second
-    turnright()
+    turnright(hostname)
     time.sleep(1) # Sleep for 1 second
-    found, left, right, near = tryturn(5, False, mydetector)
+    found, left, right, near = tryturn(5, False, mydetector, hostname)
 
   if found:
     if left:
       print("On the left!!!")
-      turnleft()
+      turnleft(hostname)
     elif right:
       print("On the right!!!")
-      turnright()
+      turnright(hostname)
     else:
       print("kibble detected in the Front!")
-      moveforward()
+      moveforward(hostname)
   else:
     print("Ooops no kibble detected!")
     return False, False
@@ -146,20 +135,21 @@ def stepforward(mydetector):
 
 def main():
 
-  mydetector = Detector()
+  hostname = '192.168.1.80'
+  mydetector = Detector(hostname)
   f = True
   while f:
     # We stop for 2 reasons not found or near.
-    f, n = stepforward(mydetector)
+    f, n = stepforward(mydetector, hostname)
     if n:
       # near try to finish
       found, left, right, nearenough = findkibble(mydetector)
       if left:
-        turnleft()
+        turnleft(hostname)
       elif right:
-        turnleft()
+        turnleft(hostname)
       elif nearenough:
-        moveforward()
+        moveforward(hostname)
       break
       
   mydetector.cleanup()
